@@ -1,0 +1,169 @@
+{
+  "date": "2026-09-07T10:59:19.868Z",
+  "filename": "RNA 9_7_2026 4_37_03 PM.csv",
+  "summary": {
+    "total": 22,
+    "dilutable": 18,
+    "insufficient": 4
+  },
+  "protocol": {
+    "title": "RT-PCR 実験プロトコル",
+    "steps": [
+      {
+        "name": "mRNA抽出",
+        "type": "text",
+        "instructions": [
+          "500 uLのTrizolにクロロホルム100uLを加え、12000rpm 20min遠心",
+          "上清を採取し、2-プロパノール300 uLを加え12000rpm 20min遠心",
+          "沈殿を残し、液をすてる。75%エタノール1mLを加え、12000rpm 15min遠心",
+          "液を捨て、余分な液体を除いて20uL RNase free water 20uLに溶解する"
+        ]
+      },
+      {
+        "name": "RNA吸光度測定",
+        "type": "text",
+        "instructions": [
+          "Nanodrop OneでRNA吸光度測定"
+        ]
+      },
+      {
+        "name": "濃度調整 (PCからCSVインポート)",
+        "type": "dynamic_table",
+        "instructions": [
+          "計算結果に基づき、19μLのRNA溶液にDDWを加えて181.8ng/uLに希釈する"
+        ]
+      },
+      {
+        "name": "RT (逆転写)",
+        "type": "text",
+        "instructions": [
+          "RNA 5.5 uL",
+          "Oligo dT 0.5 uL",
+          "dNTP 0.5 uL",
+          "PCRチューブに加え、65℃ 5min, 4℃ 2min",
+          "---",
+          "SuperScript3 0.5 uL",
+          "DTT 0.5 uL",
+          "x5 FS buffer 0.5 uL",
+          "RNase out 0.5 uL",
+          "50℃ 90min",
+          "70℃ 15min",
+          "---",
+          "RNase H 0.5 uL",
+          "37℃ 20min"
+        ]
+      }
+    ]
+  },
+  "diluteSamples": [
+    {
+      "sampleName": "b- 2",
+      "conc": 961.573,
+      "addDdwVol": 81.49
+    },
+    {
+      "sampleName": "c1- 1",
+      "conc": 923.941,
+      "addDdwVol": 77.56
+    },
+    {
+      "sampleName": "c1- 2",
+      "conc": 205.545,
+      "addDdwVol": 2.48
+    },
+    {
+      "sampleName": "c1+ 1",
+      "conc": 264.655,
+      "addDdwVol": 8.66
+    },
+    {
+      "sampleName": "3f- 1",
+      "conc": 316.899,
+      "addDdwVol": 14.12
+    },
+    {
+      "sampleName": "3f+ 1",
+      "conc": 224.973,
+      "addDdwVol": 4.51
+    },
+    {
+      "sampleName": "f1 1",
+      "conc": 707.258,
+      "addDdwVol": 54.92
+    },
+    {
+      "sampleName": "f 2 1",
+      "conc": 544.395,
+      "addDdwVol": 37.89
+    },
+    {
+      "sampleName": "f3 1",
+      "conc": 689.941,
+      "addDdwVol": 53.11
+    },
+    {
+      "sampleName": "f4 1",
+      "conc": 407.22,
+      "addDdwVol": 23.56
+    },
+    {
+      "sampleName": "f5 1",
+      "conc": 314.83,
+      "addDdwVol": 13.9
+    },
+    {
+      "sampleName": "f6 1",
+      "conc": 350.83,
+      "addDdwVol": 17.67
+    },
+    {
+      "sampleName": "p7 1",
+      "conc": 504.722,
+      "addDdwVol": 33.75
+    },
+    {
+      "sampleName": "p8 1",
+      "conc": 371.554,
+      "addDdwVol": 19.83
+    },
+    {
+      "sampleName": "p9 1",
+      "conc": 251.726,
+      "addDdwVol": 7.31
+    },
+    {
+      "sampleName": "l10 1",
+      "conc": 499.039,
+      "addDdwVol": 33.15
+    },
+    {
+      "sampleName": "l11 1",
+      "conc": 419.178,
+      "addDdwVol": 24.81
+    },
+    {
+      "sampleName": "l12 1",
+      "conc": 445.118,
+      "addDdwVol": 27.52
+    }
+  ],
+  "insufficientSamples": [
+    {
+      "sampleName": "l+ 1",
+      "conc": 107.251
+    },
+    {
+      "sampleName": "l'+  1",
+      "conc": 29.5
+    },
+    {
+      "sampleName": "b- 1",
+      "conc": 17.843
+    },
+    {
+      "sampleName": "c1+ 2",
+      "conc": 164.807
+    }
+  ],
+  "errorSamples": []
+}
