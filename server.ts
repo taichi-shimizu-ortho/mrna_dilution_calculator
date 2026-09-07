@@ -101,8 +101,7 @@ app.post('/api/process', (req, res) => {
             a260280: string;
             a260230: string;
             status: string;
-            rnaVol: number | string;
-            ddwVol: number | string;
+            addDdwVol: number | string;
             message: string;
         };
 
@@ -119,42 +118,32 @@ app.post('/api/process', (req, res) => {
             
             const naConc = parseFloat(concStr);
             let status = '';
-            let rnaVol: number | string = '-';
-            let ddwVol: number | string = '-';
+            let addDdwVol: number | string = '-';
             let message = '';
 
             if (isNaN(naConc) || naConc <= 0) {
                 status = 'error';
                 message = '濃度エラー';
+            } else if (naConc < 181.8) {
+                status = 'insufficient';
+                message = '濃度不足';
             } else {
-                const rnaAmountIn5_5ul = naConc * 5.5;
-                if (rnaAmountIn5_5ul < 1000) {
-                    status = 'insufficient';
-                    message = '濃度不足';
-                } else if (naConc < 1000) {
-                    const volRNA = 1000 / naConc;
-                    const volDDW = 5.5 - volRNA;
-                    status = 'dilute';
-                    rnaVol = Number(volRNA.toFixed(2));
-                    ddwVol = Number(volDDW.toFixed(2));
-                    message = '希釈必要';
-                } else {
-                    const volDDW = naConc * 20 / 1000 - 20;
-                    status = 'concentrated';
-                    rnaVol = 20;
-                    ddwVol = Number(volDDW.toFixed(2));
-                    message = '高濃度希釈';
-                }
+                status = 'dilute';
+                // 19uLのRNAを181.8ng/uLに希釈するために必要なDDWの量
+                // V_final = (19 * naConc) / 181.8
+                // DDW = V_final - 19
+                const ddw = (naConc * 19) / 181.8 - 19;
+                addDdwVol = Number(ddw.toFixed(2));
+                message = '希釈可能';
             }
 
             results.push({
-                sampleName, conc: naConc, a260280, a260230, status, rnaVol, ddwVol, message
+                sampleName, conc: naConc, a260280, a260230, status, addDdwVol, message
             });
         }
 
         const insufficientSamples = results.filter(r => r.status === 'insufficient');
         const diluteSamples = results.filter(r => r.status === 'dilute');
-        const concentratedSamples = results.filter(r => r.status === 'concentrated');
         const errorSamples = results.filter(r => r.status === 'error');
 
         const todayStr = new Date().toISOString().split('T')[0];
@@ -165,20 +154,19 @@ app.post('/api/process', (req, res) => {
                 mdOutput += `## ${title}\n`;
                 if (note) mdOutput += `${note}\n\n`;
                 
-                const cols = ["Sample Name", "Conc(ng/uL)", "A260/280", "A260/230", "RNA Vol", "DDW Vol"];
+                const cols = ["Sample Name", "Conc(ng/uL)", "A260/280", "A260/230", "Add DDW(μL)"];
                 mdOutput += `| ${cols.join(' | ')} |\n`;
                 mdOutput += `| ${cols.map(() => '---').join(' | ')} |\n`;
                 
                 for (const s of samples) {
-                    mdOutput += `| ${s.sampleName} | ${s.conc} | ${s.a260280} | ${s.a260230} | ${s.rnaVol} | ${s.ddwVol} |\n`;
+                    mdOutput += `| ${s.sampleName} | ${s.conc} | ${s.a260280} | ${s.a260230} | ${s.addDdwVol} |\n`;
                 }
                 mdOutput += '\n';
             }
         };
 
-        printMdTable(insufficientSamples, "⚠️ 濃度不足サンプル（5.5μLでも1000ng未満）");
-        printMdTable(diluteSamples, "🧪 希釈必要サンプル（1000ng/uL未満）", "1000ngを得るためのRNA量 + DDWで5.5μLに調整");
-        printMdTable(concentratedSamples, "💧 高濃度サンプル（1000ng/uL以上）", "1000ng/uLに希釈するためのDDW添加量（RNA 20μL使用）");
+        printMdTable(insufficientSamples, "⚠️ 濃度不足サンプル（181.8ng/uL未満）");
+        printMdTable(diluteSamples, "🧪 希釈必要サンプル", "19μLのRNA溶液にDDWを加えて181.8ng/uLに調整する量");
 
         if (errorSamples.length > 0) {
             mdOutput += "## ❌ エラーサンプル\n";
@@ -192,7 +180,7 @@ app.post('/api/process', (req, res) => {
 
         mdOutput += "## 📊 サマリー\n";
         mdOutput += `- 総数: ${results.length}\n`;
-        mdOutput += `- 処理可能: ${diluteSamples.length + concentratedSamples.length}\n`;
+        mdOutput += `- 処理可能: ${diluteSamples.length}\n`;
         mdOutput += `- 濃度不足: ${insufficientSamples.length}\n`;
 
         // 同じディレクトリにMDファイルを保存
