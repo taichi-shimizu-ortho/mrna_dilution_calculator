@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RNA 希釈結果</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .header {
+            background-color: var(--primary);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+        .container {
+            padding: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        .meta-info {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td {
+            padding: 10px 5px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            color: #888;
+            font-weight: normal;
+        }
+        .highlight {
+            font-weight: bold;
+            color: var(--dark);
+            font-size: 16px;
+        }
+        .danger-text { color: var(--danger); }
+        
+        .empty-state {
+            text-align: center;
+            color: #888;
+            padding: 30px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🧬 RNA 希釈計算結果</h1>
+</div>
+
+<div class="container" id="app">
+    <div class="empty-state">データを読み込んでいます...</div>
+</div>
+
+<script>
+    async function loadData() {
+        try {
+            // キャッシュを防ぐためにタイムスタンプを付与
+            const response = await fetch('latest_result.json?t=' + new Date().getTime());
+            if (!response.ok) throw new Error('データの取得に失敗しました');
+            const data = await response.json();
+            renderData(data);
+        } catch (err) {
+            document.getElementById('app').innerHTML = `
+                <div class="card">
+                    <div class="error" style="color: red; text-align: center;">
+                        ${err.message}<br><br>
+                        まだデータがアップロードされていないか、URLが間違っている可能性があります。
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function renderData(data) {
+        let html = `
+            <div class="card">
+                <div class="meta-info">📅 処理日時: ${new Date(data.date).toLocaleString('ja-JP')}</div>
+                <div class="meta-info">📄 ファイル: ${data.filename}</div>
+                <div class="meta-info">📊 サマリー: 総数${data.summary.total} (処理可能: ${data.summary.dilutable}, 濃度不足: ${data.summary.insufficient})</div>
+            </div>
+        `;
+
+        if (data.diluteSamples && data.diluteSamples.length > 0) {
+            html += `
+                <div class="card">
+                    <div class="card-title">🧪 希釈必要サンプル (181.8ng/uL調整)</div>
+                    <div style="font-size:12px; color:#666; margin-bottom:10px;">19μLのRNA溶液に加えるDDWの量</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sample</th>
+                                <th>Conc<br>(ng/uL)</th>
+                                <th>Add DDW<br>(μL)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.diluteSamples.map(s => `
+                                <tr>
+                                    <td>${s.sampleName}</td>
+                                    <td>${s.conc}</td>
+                                    <td class="highlight">${s.addDdwVol}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        if (data.insufficientSamples && data.insufficientSamples.length > 0) {
+            html += `
+                <div class="card">
+                    <div class="card-title danger-text">⚠️ 濃度不足 (181.8ng/uL未満)</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sample</th>
+                                <th>Conc<br>(ng/uL)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.insufficientSamples.map(s => `
+                                <tr>
+                                    <td>${s.sampleName}</td>
+                                    <td class="danger-text">${s.conc}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        if (data.errorSamples && data.errorSamples.length > 0) {
+            html += `
+                <div class="card">
+                    <div class="card-title danger-text">❌ エラーサンプル</div>
+                    <table>
+                        <tbody>
+                            ${data.errorSamples.map(s => `
+                                <tr>
+                                    <td>${s.sampleName}</td>
+                                    <td class="danger-text">${s.message}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        document.getElementById('app').innerHTML = html;
+    }
+
+    // 初回読み込み
+    loadData();
+</script>
+
+</body>
+</html>

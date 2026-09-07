@@ -178,6 +178,7 @@ app.post('/api/process', (req, res) => {
             mdOutput += '\n';
         }
 
+        // Markdown出力処理 (省略せず既存のまま)
         mdOutput += "## 📊 サマリー\n";
         mdOutput += `- 総数: ${results.length}\n`;
         mdOutput += `- 処理可能: ${diluteSamples.length}\n`;
@@ -189,6 +190,31 @@ app.post('/api/process', (req, res) => {
         const outFilePath = path.join(parsedPath.dir, outFileName);
         
         fs.writeFileSync(outFilePath, mdOutput, 'utf8');
+
+        // スマホ用JSONの出力 (docs/latest_result.json)
+        const jsonData = {
+            date: new Date().toISOString(),
+            filename: parsedPath.base,
+            summary: {
+                total: results.length,
+                dilutable: diluteSamples.length,
+                insufficient: insufficientSamples.length
+            },
+            diluteSamples: diluteSamples.map(s => ({ sampleName: s.sampleName, conc: s.conc, addDdwVol: s.addDdwVol })),
+            insufficientSamples: insufficientSamples.map(s => ({ sampleName: s.sampleName, conc: s.conc })),
+            errorSamples: errorSamples.map(s => ({ sampleName: s.sampleName, message: s.message }))
+        };
+
+        const docsDir = path.join(process.cwd(), 'docs');
+        if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir);
+        fs.writeFileSync(path.join(docsDir, 'latest_result.json'), JSON.stringify(jsonData, null, 2), 'utf8');
+
+        // GitHubへ自動プッシュ (非同期)
+        const { exec } = require('child_process');
+        exec('git add docs/latest_result.json && git commit -m "Auto-update latest result" && git push', (err: any) => {
+            if (err) console.error("Git push failed:", err);
+            else console.log("Successfully pushed latest results to GitHub.");
+        });
 
         res.json({ markdown: mdOutput, savedPath: outFilePath });
     } catch (error: any) {
