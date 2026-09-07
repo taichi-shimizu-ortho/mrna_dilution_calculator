@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RNA 希釈計算ツール</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --primary: #3498db;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: var(--dark);
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 10px;
+        }
+        
+        /* ファイルエクスプローラー */
+        .explorer-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #eef2f5;
+            border-radius: 6px;
+        }
+        .current-dir {
+            font-weight: bold;
+            margin-bottom: 10px;
+            word-break: break-all;
+        }
+        .file-list {
+            background: #fff;
+            border: 1px solid #ccc;
+            height: 250px;
+            overflow-y: auto;
+            border-radius: 4px;
+        }
+        .file-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        .file-item:hover {
+            background: #f1f8ff;
+        }
+        .file-item.selected {
+            background: #d4edda;
+            font-weight: bold;
+        }
+        .icon {
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+
+        button.action-btn {
+            background-color: var(--success);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            display: block;
+            width: 100%;
+            margin-top: 15px;
+        }
+        button.action-btn:hover { background-color: #27ae60; }
+        button.action-btn:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        
+        .error { color: var(--danger); font-weight: bold; margin-top: 10px; }
+        .success-msg { color: var(--success); font-weight: bold; margin-top: 10px; }
+
+        /* タブ UI */
+        .result-section { margin-top: 30px; display: none; }
+        .tabs { display: flex; margin-bottom: 15px; }
+        .tab {
+            padding: 10px 20px; cursor: pointer; background: #e0e0e0;
+            border: 1px solid #ccc; border-bottom: none;
+            border-radius: 5px 5px 0 0; margin-right: 5px;
+        }
+        .tab.active { background: #fff; font-weight: bold; border-top: 3px solid var(--primary); }
+        .tab-content {
+            display: none; padding: 20px; border: 1px solid #ccc;
+            border-radius: 0 5px 5px 5px; background: #fff;
+        }
+        .tab-content.active { display: block; }
+
+        /* Markdown プレビュー */
+        .markdown-preview table {
+            border-collapse: collapse; width: 100%; margin-bottom: 20px;
+        }
+        .markdown-preview th, .markdown-preview td {
+            border: 1px solid #555; padding: 8px; text-align: center;
+        }
+        .markdown-preview th { background-color: #f2f2f2; }
+        pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap; }
+
+        /* 印刷用スタイル */
+        .print-btn {
+            background: #34495e; color: white; padding: 10px 15px;
+            border: none; border-radius: 4px; cursor: pointer; font-size: 14px;
+            margin-bottom: 15px;
+        }
+        .print-btn:hover { background: #2c3e50; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #printTab, #printTab * { visibility: visible; }
+            #printTab { position: absolute; left: 0; top: 0; width: 100%; border: none; padding: 0; }
+            .print-btn { display: none; }
+            
+            /* 白黒・実験ノート貼り付け用のコンパクト設定 */
+            #printTab {
+                color: #000;
+                font-family: 'Times New Roman', serif; /* より印刷向けな明朝/セリフ体 */
+            }
+            .print-view table {
+                width: auto !important; /* 100%を強制解除して、コンテンツ幅にする */
+                margin-bottom: 15px;
+                border-collapse: collapse;
+            }
+            .print-view th, .print-view td {
+                padding: 3px 6px; /* セルの余白をさらに限界まで小さく */
+                font-size: 10pt; /* 12ptだとまだ大きいため10ptに縮小 */
+                border: 1px solid #000; /* 白黒印刷用の黒枠 */
+                color: #000;
+                text-align: center;
+                white-space: nowrap; /* 表が不必要に縦長になるのを防ぐ */
+            }
+            .print-view h1 { font-size: 14pt; margin: 10px 0 5px 0; }
+            .print-view h2 { font-size: 12pt; margin: 10px 0 3px 0; }
+            .print-view p, .print-view li { font-size: 10pt; margin: 2px 0; }
+            
+            /* A4サイズの余白調整 */
+            @page { size: A4; margin: 10mm; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🧬 RNA 希釈計算ツール</h1>
+    
+    <div class="explorer-section">
+        <div class="current-dir" id="currentDirText">📁 読み込み中...</div>
+        <div class="file-list" id="fileList"></div>
+        
+        <div id="selectedFileInfo" style="margin-top:10px; font-weight:bold; color:var(--primary);"></div>
+        <button id="calculateBtn" class="action-btn" disabled>計算してMDファイルに出力</button>
+        <div id="statusMsg" class="success-msg"></div>
+        <div id="errorMsg" class="error"></div>
+    </div>
+
+    <div class="result-section" id="resultSection">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('preview')">プレビュー</div>
+            <div class="tab" onclick="switchTab('print')">🖨️ A4印刷用</div>
+            <div class="tab" onclick="switchTab('raw')">Markdownソース</div>
+        </div>
+        
+        <div id="previewTab" class="tab-content active markdown-preview"></div>
+        
+        <div id="printTab" class="tab-content print-view">
+            <button class="print-btn" onclick="window.print()">🖨️ このページをA4で印刷する</button>
+            <div id="printContent"></div>
+        </div>
+        
+        <div id="rawTab" class="tab-content">
+            <button id="copyBtn" class="print-btn">📋 コピー</button>
+            <pre id="rawMarkdown"></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+    const fileListEl = document.getElementById('fileList');
+    const currentDirText = document.getElementById('currentDirText');
+    const selectedFileInfo = document.getElementById('selectedFileInfo');
+    const calculateBtn = document.getElementById('calculateBtn');
+    const statusMsg = document.getElementById('statusMsg');
+    const errorMsg = document.getElementById('errorMsg');
+    
+    let currentDir = '';
+    let selectedFilePath = '';
+
+    // ディレクトリ一覧を取得して表示
+    async function loadDirectory(dirPath = '') {
+        try {
+            const url = dirPath ? `/api/list?dir=${encodeURIComponent(dirPath)}` : '/api/list';
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            if (!res.ok) throw new Error(data.error);
+
+            currentDir = data.current;
+            currentDirText.innerHTML = `📁 ${currentDir}`;
+            fileListEl.innerHTML = '';
+            selectedFilePath = '';
+            selectedFileInfo.textContent = '';
+            calculateBtn.disabled = true;
+
+            // 親ディレクトリへ戻るボタン
+            if (data.parent) {
+                const upItem = document.createElement('div');
+                upItem.className = 'file-item';
+                upItem.innerHTML = `<span class="icon">⬆️</span> .. (上の階層へ)`;
+                upItem.onclick = () => loadDirectory(data.parent);
+                fileListEl.appendChild(upItem);
+            }
+
+            data.items.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'file-item';
+                
+                if (item.isDir) {
+                    el.innerHTML = `<span class="icon">📁</span> ${item.name}`;
+                    el.onclick = () => loadDirectory(item.path);
+                } else {
+                    const isCsv = item.name.toLowerCase().endsWith('.csv') || item.name.toLowerCase().endsWith('.tsv') || item.name.toLowerCase().endsWith('.txt');
+                    el.innerHTML = `<span class="icon">${isCsv ? '📄' : '📜'}</span> <span style="${!isCsv ? 'color:#999;' : ''}">${item.name}</span>`;
+                    
+                    if (isCsv) {
+                        el.onclick = () => {
+                            document.querySelectorAll('.file-item').forEach(i => i.classList.remove('selected'));
+                            el.classList.add('selected');
+                            selectedFilePath = item.path;
+                            selectedFileInfo.textContent = `選択中: ${item.name}`;
+                            calculateBtn.disabled = false;
+                        };
+                    } else {
+                        el.style.cursor = 'not-allowed';
+                    }
+                }
+                fileListEl.appendChild(el);
+            });
+        } catch (err) {
+            currentDirText.innerHTML = `<span class="error">エラー: ${err.message}</span>`;
+        }
+    }
+
+    // 初回ロード (デフォルトは C:\Users\a2189\OneDrive\Desktop )
+    loadDirectory();
+
+    // 計算実行
+    calculateBtn.addEventListener('click', async () => {
+        if (!selectedFilePath) return;
+        
+        statusMsg.textContent = '';
+        errorMsg.textContent = '';
+        calculateBtn.disabled = true;
+        calculateBtn.textContent = '計算中...';
+
+        try {
+            const response = await fetch('/api/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: selectedFilePath })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'サーバーエラーが発生しました');
+            }
+
+            const mdText = data.markdown;
+            
+            // タブの更新
+            document.getElementById('rawMarkdown').textContent = mdText;
+            
+            // プレビュー用 (絵文字あり)
+            document.getElementById('previewTab').innerHTML = marked.parse(mdText);
+            
+            // 印刷用 (絵文字なし、白黒コンパクト版)
+            const mdTextNoEmoji = mdText.replace(/[⚠️🧪💧❌📊🖨️🧬📁📄📜⬆️]/g, '').trim();
+            document.getElementById('printContent').innerHTML = marked.parse(mdTextNoEmoji);
+            
+            document.getElementById('resultSection').style.display = 'block';
+            statusMsg.innerHTML = `✅ 計算完了！<br>同じフォルダに保存しました: <br><code>${data.savedPath}</code>`;
+
+            // 自動的にA4プレビュータブを開く
+            switchTab('print');
+
+        } catch (error) {
+            errorMsg.textContent = error.message;
+        } finally {
+            calculateBtn.disabled = false;
+            calculateBtn.textContent = '計算してMDファイルに出力';
+        }
+    });
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        let idx = 0;
+        let contentId = 'previewTab';
+        
+        if (tabName === 'print') { idx = 1; contentId = 'printTab'; }
+        else if (tabName === 'raw') { idx = 2; contentId = 'rawTab'; }
+
+        document.querySelectorAll('.tab')[idx].classList.add('active');
+        document.getElementById(contentId).classList.add('active');
+    }
+
+    document.getElementById('copyBtn').addEventListener('click', () => {
+        navigator.clipboard.writeText(document.getElementById('rawMarkdown').textContent).then(() => {
+            const btn = document.getElementById('copyBtn');
+            const originalText = btn.textContent;
+            btn.textContent = '✅ コピーしました！';
+            setTimeout(() => { btn.textContent = originalText; }, 2000);
+        });
+    });
+</script>
+
+</body>
+</html>
