@@ -18,42 +18,51 @@ app.get('/api/list', (req, res) => {
             targetDir = 'C:\\Users\\a2189\\OneDrive\\Desktop'; // フォールバック
         }
 
-        const items = fs.readdirSync(targetDir, { withFileTypes: true });
-        
-        let list = items.map(item => {
-            const itemPath = path.join(targetDir, item.name);
-            let mtimeMs = 0;
-            try { mtimeMs = fs.statSync(itemPath).mtimeMs; } catch(e) {}
-            return {
-                name: item.name,
-                isDir: item.isDirectory(),
-                path: itemPath,
-                mtimeMs: mtimeMs
-            };
-        });
+        const fileList: any[] = [];
 
-        // フォルダ、または "RNA " で始まるCSV/TSVファイルのみに絞り込み
-        list = list.filter(item => {
-            if (item.isDir) return true;
-            const nameLow = item.name.toLowerCase();
-            const isTargetExt = nameLow.endsWith('.csv') || nameLow.endsWith('.tsv') || nameLow.endsWith('.txt');
-            return item.name.startsWith('RNA ') && isTargetExt;
-        });
+        function findTargetFilesRecursive(dirPath: string) {
+            let items;
+            try {
+                items = fs.readdirSync(dirPath, { withFileTypes: true });
+            } catch (e) {
+                return;
+            }
 
-        // フォルダを先（アルファベット順）、次にファイルを新しい順（更新日時降順）にソート
-        list.sort((a, b) => {
-            if (a.isDir && !b.isDir) return -1;
-            if (!a.isDir && b.isDir) return 1;
-            if (a.isDir && b.isDir) return a.name.localeCompare(b.name);
-            return b.mtimeMs - a.mtimeMs;
-        });
+            for (const item of items) {
+                const fullPath = path.join(dirPath, item.name);
+                if (item.isDirectory()) {
+                    findTargetFilesRecursive(fullPath);
+                } else {
+                    const nameLow = item.name.toLowerCase();
+                    const isTargetExt = nameLow.endsWith('.csv') || nameLow.endsWith('.tsv') || nameLow.endsWith('.txt');
+                    if (item.name.startsWith('RNA ') && isTargetExt) {
+                        let mtimeMs = 0;
+                        try { mtimeMs = fs.statSync(fullPath).mtimeMs; } catch(e) {}
+                        
+                        // 親ディレクトリ名を取得（UI表示用）
+                        const parentDirName = path.basename(dirPath);
 
-        const parent = path.dirname(targetDir);
+                        fileList.push({
+                            name: item.name,
+                            isDir: false,
+                            path: fullPath,
+                            parentDirName: parentDirName,
+                            mtimeMs: mtimeMs
+                        });
+                    }
+                }
+            }
+        }
+
+        findTargetFilesRecursive(targetDir);
+
+        // 新しい順（更新日時降順）にソート
+        fileList.sort((a, b) => b.mtimeMs - a.mtimeMs);
 
         res.json({
             current: targetDir,
-            parent: parent !== targetDir ? parent : null,
-            items: list
+            parent: null, // 階層移動をなくすためnull
+            items: fileList
         });
     } catch (e: any) {
         res.status(500).json({ error: e.message });

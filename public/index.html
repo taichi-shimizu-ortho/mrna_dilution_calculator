@@ -163,6 +163,7 @@
     
     <div class="explorer-section">
         <div class="current-dir" id="currentDirText">📁 読み込み中...</div>
+        <div style="font-size: 13px; color: #666; margin-bottom: 10px;">※ フォルダ内のすべてのRNAデータ（CSV）を自動検索し、新しい順に表示しています。</div>
         <div class="file-list" id="fileList"></div>
         
         <div id="selectedFileInfo" style="margin-top:10px; font-weight:bold; color:var(--primary);"></div>
@@ -237,7 +238,13 @@
                     el.onclick = () => loadDirectory(item.path);
                 } else {
                     const isCsv = item.name.toLowerCase().endsWith('.csv') || item.name.toLowerCase().endsWith('.tsv') || item.name.toLowerCase().endsWith('.txt');
-                    el.innerHTML = `<span class="icon">${isCsv ? '📄' : '📜'}</span> <span style="${!isCsv ? 'color:#999;' : ''}">${item.name}</span>`;
+                    
+                    let displayName = item.name;
+                    if (item.parentDirName) {
+                        displayName = `<span style="color:#888; font-size: 0.9em;">${item.parentDirName} /</span> ${item.name}`;
+                    }
+
+                    el.innerHTML = `<span class="icon">${isCsv ? '📄' : '📜'}</span> <span>${displayName}</span>`;
                     
                     if (isCsv) {
                         el.onclick = () => {
