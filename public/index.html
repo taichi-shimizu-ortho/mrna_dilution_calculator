@@ -265,8 +265,48 @@
         }
     }
 
-    // 初回ロード (デフォルトは C:\Users\a2189\OneDrive\Desktop )
+    // 初回ロード (デフォルトは C:\Users\a2189\OneDrive\Desktop\mRNA PCR )
     loadDirectory();
+
+    // 初期プロトコルの読み込みと表示
+    async function loadProtocol() {
+        try {
+            const res = await fetch('/api/protocol');
+            if (!res.ok) return;
+            const protocol = await res.json();
+            
+            const todayStr = new Date().toISOString().split('T')[0];
+            let md = `# ${protocol.title} (${todayStr})\n\n`;
+            
+            protocol.steps.forEach((step, index) => {
+                md += `## ${index + 1}. ${step.name}\n\n`;
+                if (step.type === 'dynamic_table') {
+                    md += `*(※ CSVファイルを選択して計算を実行すると、ここにDDW添加量の表が表示されます)*\n\n`;
+                } else if (step.instructions) {
+                    step.instructions.forEach(inst => {
+                        if (inst === "---") md += `\n---\n\n`;
+                        else md += `- ${inst}\n`;
+                    });
+                    md += `\n`;
+                }
+            });
+            
+            // タブの更新
+            document.getElementById('rawMarkdown').textContent = md;
+            
+            // プレビュー用 (絵文字あり)
+            document.getElementById('previewTab').innerHTML = marked.parse(md);
+            
+            // 印刷用 (絵文字なし、白黒コンパクト版)
+            const mdTextNoEmoji = md.replace(/[⚠️🧪💧❌📊🖨️🧬📁📄📜⬆️]/g, '').trim();
+            document.getElementById('printContent').innerHTML = marked.parse(mdTextNoEmoji);
+            
+            document.getElementById('resultSection').style.display = 'block';
+        } catch (e) {
+            console.error("Protocol load failed", e);
+        }
+    }
+    loadProtocol();
 
     // 計算実行
     calculateBtn.addEventListener('click', async () => {

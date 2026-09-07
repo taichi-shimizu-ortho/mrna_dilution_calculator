@@ -69,6 +69,20 @@ app.get('/api/list', (req, res) => {
     }
 });
 
+// プロトコル取得API
+app.get('/api/protocol', (req, res) => {
+    try {
+        const protocolPath = path.join(process.cwd(), 'protocol.json');
+        if (fs.existsSync(protocolPath)) {
+            res.sendFile(protocolPath);
+        } else {
+            res.status(404).json({ error: 'プロトコルが見つかりません' });
+        }
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // 計算およびファイル保存API
 app.post('/api/process', (req, res) => {
     try {
