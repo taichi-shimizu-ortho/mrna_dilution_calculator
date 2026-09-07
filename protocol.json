@@ -1,0 +1,49 @@
+{
+  "title": "RT-PCR 実験プロトコル",
+  "steps": [
+    {
+      "name": "mRNA抽出",
+      "type": "text",
+      "instructions": [
+        "500 uLのTrizolにクロロホルム100uLを加え、12000rpm 20min遠心",
+        "上清を採取し、2-プロパノール300 uLを加え12000rpm 20min遠心",
+        "沈殿を残し、液をすてる。75%エタノール1mLを加え、12000rpm 15min遠心",
+        "液を捨て、余分な液体を除いて20uL RNase free water 20uLに溶解する"
+      ]
+    },
+    {
+      "name": "RNA吸光度測定",
+      "type": "text",
+      "instructions": [
+        "Nanodrop OneでRNA吸光度測定"
+      ]
+    },
+    {
+      "name": "濃度調整 (PCからCSVインポート)",
+      "type": "dynamic_table",
+      "instructions": [
+        "計算結果に基づき、19μLのRNA溶液にDDWを加えて181.8ng/uLに希釈する"
+      ]
+    },
+    {
+      "name": "RT (逆転写)",
+      "type": "text",
+      "instructions": [
+        "RNA 5.5 uL",
+        "Oligo dT 0.5 uL",
+        "dNTP 0.5 uL",
+        "PCRチューブに加え、65℃ 5min, 4℃ 2min",
+        "---",
+        "SuperScript3 0.5 uL",
+        "DTT 0.5 uL",
+        "x5 FS buffer 0.5 uL",
+        "RNase out 0.5 uL",
+        "50℃ 90min",
+        "70℃ 15min",
+        "---",
+        "RNase H 0.5 uL",
+        "37℃ 20min"
+      ]
+    }
+  ]
+}

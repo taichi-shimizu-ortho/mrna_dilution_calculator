@@ -147,42 +147,90 @@ app.post('/api/process', (req, res) => {
         const errorSamples = results.filter(r => r.status === 'error');
 
         const todayStr = new Date().toISOString().split('T')[0];
-        let mdOutput = `# RNA希釈プロトコル (${todayStr})\n\n`;
-
-        const printMdTable = (samples: SampleInfo[], title: string, note: string = '') => {
-            if (samples.length > 0) {
-                mdOutput += `## ${title}\n`;
-                if (note) mdOutput += `${note}\n\n`;
-                
-                const cols = ["Sample Name", "Conc(ng/uL)", "A260/280", "A260/230", "Add DDW(μL)"];
-                mdOutput += `| ${cols.join(' | ')} |\n`;
-                mdOutput += `| ${cols.map(() => '---').join(' | ')} |\n`;
-                
-                for (const s of samples) {
-                    mdOutput += `| ${s.sampleName} | ${s.conc} | ${s.a260280} | ${s.a260230} | ${s.addDdwVol} |\n`;
-                }
-                mdOutput += '\n';
-            }
-        };
-
-        printMdTable(insufficientSamples, "⚠️ 濃度不足サンプル（181.8ng/uL未満）");
-        printMdTable(diluteSamples, "🧪 希釈必要サンプル", "19μLのRNA溶液にDDWを加えて181.8ng/uLに調整する量");
-
-        if (errorSamples.length > 0) {
-            mdOutput += "## ❌ エラーサンプル\n";
-            mdOutput += "| Sample Name | Conc(ng/uL) | Message |\n";
-            mdOutput += "| --- | --- | --- |\n";
-            for (const s of errorSamples) {
-                mdOutput += `| ${s.sampleName} | ${s.conc} | ${s.message} |\n`;
-            }
-            mdOutput += '\n';
+        const protocolPath = path.join(process.cwd(), 'protocol.json');
+        let protocol = { title: "RNA希釈プロトコル", steps: [] as any[] };
+        if (fs.existsSync(protocolPath)) {
+            protocol = JSON.parse(fs.readFileSync(protocolPath, 'utf8'));
         }
 
-        // Markdown出力処理 (省略せず既存のまま)
-        mdOutput += "## 📊 サマリー\n";
-        mdOutput += `- 総数: ${results.length}\n`;
-        mdOutput += `- 処理可能: ${diluteSamples.length}\n`;
-        mdOutput += `- 濃度不足: ${insufficientSamples.length}\n`;
+        let mdOutput = `# ${protocol.title} (${todayStr})\n\n`;
+
+        const printMdTable = (samples: SampleInfo[], title: string, note: string = '') => {
+            let out = "";
+            if (samples.length > 0) {
+                out += `### ${title}\n`;
+                if (note) out += `${note}\n\n`;
+                
+                const cols = ["Sample Name", "Conc(ng/uL)", "A260/280", "A260/230", "Add DDW(μL)"];
+                out += `| ${cols.join(' | ')} |\n`;
+                out += `| ${cols.map(() => '---').join(' | ')} |\n`;
+                
+                for (const s of samples) {
+                    out += `| ${s.sampleName} | ${s.conc} | ${s.a260280} | ${s.a260230} | ${s.addDdwVol} |\n`;
+                }
+                out += '\n';
+            }
+            return out;
+        };
+
+        if (protocol.steps && protocol.steps.length > 0) {
+            protocol.steps.forEach((step: any, index: number) => {
+                mdOutput += `## ${index + 1}. ${step.name}\n\n`;
+                
+                if (step.type === 'dynamic_table') {
+                    if (step.instructions) {
+                        step.instructions.forEach((inst: string) => {
+                            mdOutput += `${inst}\n\n`;
+                        });
+                    }
+                    
+                    mdOutput += printMdTable(insufficientSamples, "⚠️ 濃度不足サンプル（181.8ng/uL未満）");
+                    mdOutput += printMdTable(diluteSamples, "🧪 希釈可能サンプル");
+                    
+                    if (errorSamples.length > 0) {
+                        mdOutput += "### ❌ エラーサンプル\n";
+                        mdOutput += "| Sample Name | Conc(ng/uL) | Message |\n";
+                        mdOutput += "| --- | --- | --- |\n";
+                        for (const s of errorSamples) {
+                            mdOutput += `| ${s.sampleName} | ${s.conc} | ${s.message} |\n`;
+                        }
+                        mdOutput += '\n';
+                    }
+                    
+                    mdOutput += "### 📊 サマリー\n";
+                    mdOutput += `- 総数: ${results.length}\n`;
+                    mdOutput += `- 処理可能: ${diluteSamples.length}\n`;
+                    mdOutput += `- 濃度不足: ${insufficientSamples.length}\n\n`;
+                } else if (step.instructions && step.instructions.length > 0) {
+                    step.instructions.forEach((inst: string) => {
+                        if (inst === "---") mdOutput += `\n---\n\n`;
+                        else mdOutput += `- ${inst}\n`;
+                    });
+                    mdOutput += `\n`;
+                }
+            });
+        } else {
+            // protocol.jsonがない場合のフォールバック（以前の動作）
+            const printMdTableOld = (samples: SampleInfo[], title: string, note: string = '') => {
+                if (samples.length > 0) {
+                    mdOutput += `## ${title}\n`;
+                    if (note) mdOutput += `${note}\n\n`;
+                    const cols = ["Sample Name", "Conc(ng/uL)", "A260/280", "A260/230", "Add DDW(μL)"];
+                    mdOutput += `| ${cols.join(' | ')} |\n`;
+                    mdOutput += `| ${cols.map(() => '---').join(' | ')} |\n`;
+                    for (const s of samples) {
+                        mdOutput += `| ${s.sampleName} | ${s.conc} | ${s.a260280} | ${s.a260230} | ${s.addDdwVol} |\n`;
+                    }
+                    mdOutput += '\n';
+                }
+            };
+            printMdTableOld(insufficientSamples, "⚠️ 濃度不足サンプル（181.8ng/uL未満）");
+            printMdTableOld(diluteSamples, "🧪 希釈必要サンプル", "19μLのRNA溶液にDDWを加えて181.8ng/uLに調整する量");
+            mdOutput += "## 📊 サマリー\n";
+            mdOutput += `- 総数: ${results.length}\n`;
+            mdOutput += `- 処理可能: ${diluteSamples.length}\n`;
+            mdOutput += `- 濃度不足: ${insufficientSamples.length}\n`;
+        }
 
         // 同じディレクトリにMDファイルを保存
         const parsedPath = path.parse(filePath);
@@ -200,6 +248,7 @@ app.post('/api/process', (req, res) => {
                 dilutable: diluteSamples.length,
                 insufficient: insufficientSamples.length
             },
+            protocol: protocol,
             diluteSamples: diluteSamples.map(s => ({ sampleName: s.sampleName, conc: s.conc, addDdwVol: s.addDdwVol })),
             insufficientSamples: insufficientSamples.map(s => ({ sampleName: s.sampleName, conc: s.conc })),
             errorSamples: errorSamples.map(s => ({ sampleName: s.sampleName, message: s.message }))
